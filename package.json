@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "node scripts/prepare-db.mjs && next dev --webpack",
     "build": "next build --webpack",
-    "start": "next start",
+    "start": "node scripts/prepare-db.mjs && next start",
     "lint": "eslint .",
     "test": "tsx --test tests/timer.test.ts",
     "prisma:generate": "prisma generate",

@@ -33,6 +33,13 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# local sqlite + runtime artifacts
+*.db
+dev-server.log
+dev-server.err
+.devserver.pid
+.pid-test.txt
+
 # vercel
 .vercel
 

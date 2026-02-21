@@ -1,11 +1,11 @@
 import bcrypt from "bcrypt";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { SESSION_COOKIE } from "@/lib/constants";
 
 const SESSION_DAYS = 30;
+const LOCAL_USER_BASE = "local-user";
 
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 12);
@@ -80,23 +80,54 @@ export async function getSession() {
 
 export async function requireUser() {
   const session = await getSession();
-  if (!session) {
-    return null;
+  if (session) {
+    return session.user;
   }
-  return session.user;
+
+  const existing = await prisma.user.findFirst({
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (existing) {
+    await prisma.userSettings.upsert({
+      where: { userId: existing.id },
+      create: {
+        userId: existing.id,
+        dayStartMin: 6 * 60,
+        dayEndMin: 23 * 60,
+        timerRoundingMin: 0,
+      },
+      update: {},
+    });
+
+    return existing;
+  }
+
+  const randomSuffix = crypto.randomBytes(3).toString("hex");
+  const username = `${LOCAL_USER_BASE}-${randomSuffix}`;
+  const passwordHash = await hashPassword(crypto.randomBytes(16).toString("hex"));
+
+  return prisma.user.create({
+    data: {
+      username,
+      passwordHash,
+      settings: {
+        create: {
+          dayStartMin: 6 * 60,
+          dayEndMin: 23 * 60,
+          timerRoundingMin: 0,
+        },
+      },
+    },
+  });
 }
 
 export async function requireUserOrRedirect() {
-  const user = await requireUser();
-  if (!user) {
-    redirect("/login");
-  }
-  return user;
+  return requireUser();
 }
 
 export async function requireUserId() {
   const user = await requireUser();
-  if (!user) return null;
   return user.id;
 }
 

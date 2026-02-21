@@ -1,7 +1,5 @@
 import { redirect } from "next/navigation";
-import { requireUser } from "@/lib/auth";
 
 export default async function HomePage() {
-  const user = await requireUser();
-  redirect(user ? "/today" : "/login");
+  redirect("/today");
 }

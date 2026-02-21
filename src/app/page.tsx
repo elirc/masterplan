@@ -9,7 +9,7 @@ const nosifer = Nosifer({
   subsets: ["latin"],
 });
 
-const COUNTDOWN_SECONDS = 12;
+const COUNTDOWN_SECONDS = 5;
 
 export default function SplashPage() {
   const router = useRouter();

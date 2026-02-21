@@ -12,17 +12,14 @@ Master Life Plan is a personal planning web app for organizing long-term structu
   - `Track Time Daily`
   - `Use Time Wisely`
   - `Right Amount Of Hours`
-- A 12-second countdown runs, then redirects to `/home`
-- `/home` sends users to:
-  - `/today` if authenticated
-  - `/login` if not authenticated
+- A 5-second countdown runs, then redirects to `/home`
+- `/home` redirects to `/today`
 
 ## Core Features
-- Authentication
-  - Local username/password login
-  - Passwords hashed with bcrypt
-  - Session token in HttpOnly cookie (`mlp_session`)
-  - Session records stored in SQLite
+- Authentication model
+  - Local user/session code still exists for compatibility
+  - App no longer requires login to use features
+  - On first use, a local default user is created automatically
 - Today (primary page)
   - Dashboard widgets at top (goal progress)
   - Daily checklist rows with:
@@ -101,19 +98,15 @@ Master Life Plan is a personal planning web app for organizing long-term structu
   - `POST /api/sync`
 
 ## User Flow
-1. Open app at `/` -> splash screen + 12-second countdown.
+1. Open app at `/` -> splash screen + 5-second countdown.
 2. Redirect to `/home`.
-3. If no session:
-   - Go to `/login`
-   - If no users exist, create account flow appears first.
-4. After login:
-   - Land on `/today`
-   - Build day checklist, start timers, adjust planned time
-   - Optionally manage schedule blocks and goals
-5. Use `/plan` to build long-term hierarchy.
-6. Use `/goals` to tune progress widgets.
-7. Use `/review` for daily/weekly insights.
-8. Use `/settings` for day bounds, backup/restore, reset.
+3. Land on `/today` automatically with no sign-in.
+4. Build day checklist, start timers, adjust planned time.
+5. Optionally manage schedule blocks and goals.
+6. Use `/plan` to build long-term hierarchy.
+7. Use `/goals` to tune progress widgets.
+8. Use `/review` for daily/weekly insights.
+9. Use `/settings` for day bounds, backup/restore, reset.
 
 ## Setup
 1. Install dependencies

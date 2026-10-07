@@ -1,7 +1,7 @@
 # Walkthrough: `src/lib/auth.ts`
 
 ## Why This File Matters
-This file sits on a critical execution path for app behavior, data integrity, or user-facing workflow.
+This file holds password hashing, session cookies, and `requireUser`, which every route calls through `withUser`. It explains why the app works without signing in.
 
 ## Key Dependencies
 - `import bcrypt from "bcrypt";`
@@ -10,77 +10,15 @@ This file sits on a critical execution path for app behavior, data integrity, or
 - `import { prisma } from "@/lib/prisma";`
 - `import { SESSION_COOKIE } from "@/lib/constants";`
 
-## Top 20-30% Code Walkthrough
-The lines below were selected as the highest-impact section of this file.
-- L10: `export async function hashPassword(password: string) {`
-- Why it matters: Defines an async entry point that other modules or routes call.
-- L11: `return bcrypt.hash(password, 12);`
-- Why it matters: Returns computed state/value to the caller.
-- L14: `export async function verifyPassword(password: string, hash: string) {`
-- Why it matters: Defines an async entry point that other modules or routes call.
-- L15: `return bcrypt.compare(password, hash);`
-- Why it matters: Returns computed state/value to the caller.
-- L18: `export function buildSessionToken() {`
-- Why it matters: Defines a reusable sync helper that encapsulates one behavior boundary.
-- L19: `return crypto.randomBytes(32).toString("hex");`
-- Why it matters: Returns computed state/value to the caller.
-- L22: `export function sessionExpiryDate() {`
-- Why it matters: Defines a reusable sync helper that encapsulates one behavior boundary.
-- L26: `export async function createSession(userId: string) {`
-- Why it matters: Defines an async entry point that other modules or routes call.
-- L30: `await prisma.session.create({`
-- Why it matters: Mutates persisted state in SQLite; check payload fields carefully before edits.
-- L38: `const cookieStore = await cookies();`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L50: `export async function clearSession() {`
-- Why it matters: Defines an async entry point that other modules or routes call.
-- L51: `const cookieStore = await cookies();`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L54: `if (token) {`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L55: `await prisma.session.deleteMany({ where: { token } });`
-- Why it matters: Mutates persisted state in SQLite; check payload fields carefully before edits.
-- L58: `cookieStore.delete(SESSION_COOKIE);`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L61: `export async function getSession() {`
-- Why it matters: Defines an async entry point that other modules or routes call.
-- L62: `const cookieStore = await cookies();`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L64: `if (!token) return null;`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L66: `const session = await prisma.session.findUnique({`
-- Why it matters: Reads persisted state from SQLite through Prisma.
-- L71: `if (!session) return null;`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L72: `if (session.expiresAt.getTime() <= Date.now()) {`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L73: `await prisma.session.delete({ where: { id: session.id } });`
-- Why it matters: Mutates persisted state in SQLite; check payload fields carefully before edits.
-- L74: `cookieStore.delete(SESSION_COOKIE);`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L81: `export async function requireUser() {`
-- Why it matters: Defines an async entry point that other modules or routes call.
-- L82: `const session = await getSession();`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L83: `if (session) {`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L87: `const existing = await prisma.user.findFirst({`
-- Why it matters: Reads persisted state from SQLite through Prisma.
-- L91: `if (existing) {`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L92: `await prisma.userSettings.upsert({`
-- Why it matters: Touches persistent data through Prisma; this line changes or reads DB state.
-- L108: `const passwordHash = await hashPassword(crypto.randomBytes(16).toString("hex"));`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L110: `return prisma.user.create({`
-- Why it matters: Mutates persisted state in SQLite; check payload fields carefully before edits.
-- L125: `export async function requireUserOrRedirect() {`
-- Why it matters: Defines an async entry point that other modules or routes call.
-- L129: `export async function requireUserId() {`
-- Why it matters: Defines an async entry point that other modules or routes call.
-- L130: `const user = await requireUser();`
-- Why it matters: Contributes to control flow or state composition in this module.
+## Key Lines
+- **L11** `return bcrypt.hash(password, 12);`: bcrypt with cost factor 12.
+- **L19** `return crypto.randomBytes(32).toString("hex");`: a 256-bit random session token. It is stored in plaintext in `Session.token` (`prisma/schema.prisma:59`).
+- **L39** `cookieStore.set(SESSION_COOKIE, token, {`: the cookie is `httpOnly` and `sameSite: "lax"`, and `secure` only in production (L40-42). It expires after 30 days (L7).
+- **L72** `if (session.expiresAt.getTime() <= Date.now()) {`: an expired session is deleted when it is next read.
+- **L87** `const existing = await prisma.user.findFirst({`: with no valid session, the request becomes the oldest user. That holds for every request with no cookie, even after other accounts have signed up.
+- **L106** `const randomSuffix = crypto.randomBytes(3).toString("hex");`: on a fresh database, a `local-user-xxxxxx` account is created with a random password nobody knows (L108).
+- **L125** `export async function requireUserOrRedirect() {`: this function never redirects. It simply returns `requireUser()`.
 
-## Intern Checks
-- Validate any change here against at least one route-level or UI-level flow in the app.
-- Keep this file aligned with its paired contracts (Prisma schema, zod schema, or API response shape).
+## Intern Check
+- Goal: write down the threat model this design accepts. A single-user local install is fine. Any server reachable by other people gives every visitor the first user's data.
+- **Check:** your write-up names L87-104 as the line range that would have to change before the app is exposed to the network.

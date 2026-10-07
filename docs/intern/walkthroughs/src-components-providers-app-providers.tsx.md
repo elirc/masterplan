@@ -1,7 +1,7 @@
 # Walkthrough: `src/components/providers/app-providers.tsx`
 
 ## Why This File Matters
-This file sits on a critical execution path for app behavior, data integrity, or user-facing workflow.
+This file creates the single React Query client. Its defaults decide how fresh every screen's data is and how long cached data survives.
 
 ## Key Dependencies
 - `import { useState } from "react";`
@@ -10,13 +10,12 @@ This file sits on a critical execution path for app behavior, data integrity, or
 - `import { ToastProvider } from "@/hooks/use-toast";`
 - `import { ToastViewport } from "@/components/ui/toast";`
 
-## Top 20-30% Code Walkthrough
-The lines below were selected as the highest-impact section of this file.
-- L9: `export function AppProviders({ children }: { children: React.ReactNode }) {`
-- Why it matters: Defines a reusable sync helper that encapsulates one behavior boundary.
-- L23: `return (`
-- Why it matters: Returns computed state/value to the caller.
+## Key Lines
+- **L10** `const [queryClient] = useState(`: the lazy initializer creates the client once per mount, not on every render.
+- **L15** `staleTime: 30_000,`: queries count as fresh for 30 seconds. `refetchOnWindowFocus: false` (L17) means switching tabs does not refetch.
+- **L16** `gcTime: 1000 * 60 * 10,`: unused cached data is dropped after 10 minutes. The cache lives only in memory, and `public/sw.js:35-37` never caches `/api/` responses. After a reload while offline, there is no data to show.
+- **L29** `<ReactQueryDevtools initialIsOpen={false} />`: the devtools panel. The package renders it only in development builds.
 
-## Intern Checks
-- Validate any change here against at least one route-level or UI-level flow in the app.
-- Keep this file aligned with its paired contracts (Prisma schema, zod schema, or API response shape).
+## Intern Check
+- Goal: decide whether offline reloads should show the last known data, and name the React Query feature you would use to keep the cache across reloads.
+- **Check:** `grep -rn "persistQueryClient\|createSyncStoragePersister" src` prints nothing today.

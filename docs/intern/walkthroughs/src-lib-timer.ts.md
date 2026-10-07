@@ -1,7 +1,7 @@
 # Walkthrough: `src/lib/timer.ts`
 
 ## Why This File Matters
-This file sits on a critical execution path for app behavior, data integrity, or user-facing workflow.
+This file keeps the "one running timer" rule. Starting a timer stops every open entry inside the same transaction. The pure part of that logic, `buildStartTimerMutations`, lives in `src/lib/timer-logic.ts` and is covered by `tests/timer.test.ts`.
 
 ## Key Dependencies
 - `import type { Prisma } from "@prisma/client";`
@@ -9,49 +9,17 @@ This file sits on a critical execution path for app behavior, data integrity, or
 - `import { prisma } from "@/lib/prisma";`
 - `import { buildStartTimerMutations } from "@/lib/timer-logic";`
 
-## Top 20-30% Code Walkthrough
-The lines below were selected as the highest-impact section of this file.
-- L6: `export async function startTimerForUser(params: {`
-- Why it matters: Defines an async entry point that other modules or routes call.
-- L14: `(await prisma.userSettings.findUnique({ where: { userId: params.userId } })) ??`
-- Why it matters: Reads persisted state from SQLite through Prisma.
-- L17: `return prisma.$transaction(async (tx) => {`
-- Why it matters: Starts an atomic DB unit-of-work so partial writes cannot escape.
-- L18: `const runningEntries = await tx.timeEntry.findMany({`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L19: `where: { userId: params.userId, endTs: null },`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L25: `if (mutations.entriesToStop.length > 0) {`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L26: `await tx.timeEntry.updateMany({`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L27: `where: { id: { in: mutations.entriesToStop } },`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L32: `const entry = await tx.timeEntry.create({`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L44: `return entry;`
-- Why it matters: Returns computed state/value to the caller.
-- L48: `export async function stopTimerForUser(params: {`
-- Why it matters: Defines an async entry point that other modules or routes call.
-- L54: `const settings = await prisma.userSettings.findUnique({ where: { userId: params.userId } });`
-- Why it matters: Reads persisted state from SQLite through Prisma.
-- L58: `? await prisma.timeEntry.findFirst({`
-- Why it matters: Reads persisted state from SQLite through Prisma.
-- L59: `where: {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L65: `: await prisma.timeEntry.findFirst({`
-- Why it matters: Reads persisted state from SQLite through Prisma.
-- L66: `where: {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L70: `orderBy: { startTs: "desc" },`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L73: `if (!running) return null;`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L75: `return prisma.timeEntry.update({`
-- Why it matters: Mutates persisted state in SQLite; check payload fields carefully before edits.
-- L76: `where: { id: running.id },`
-- Why it matters: Contributes to control flow or state composition in this module.
+## Key Lines
+- **L13** `const settings =`: when the user has no settings row, rounding defaults to 0 (L15).
+- **L17** `return prisma.$transaction(async (tx) => {`: the stop-others step and the create step commit together.
+- **L23** `const mutations = buildStartTimerMutations(runningEntries, now, settings.timerRoundingMin);`: other entries are stopped at the rounded time.
+- **L39** `startTs: now,`: the new entry starts at the exact time, not the rounded time. The previous entry, meanwhile, was stopped at the rounded time.
+- **L55** `const rounded = roundDate(now, settings?.timerRoundingMin ?? 0);`: stopping also rounds. With 15-minute rounding, a timer started at 10:07 and stopped at 10:08 gets `endTs` 10:00, which is before its start. Readers clamp that to 0 minutes (`src/lib/goals.ts:34`, `src/app/api/day/route.ts:57`).
+- **L75** `return prisma.timeEntry.update({`: stop is a single write and needs no transaction.
 
-## Intern Checks
-- Validate any change here against at least one route-level or UI-level flow in the app.
-- Keep this file aligned with its paired contracts (Prisma schema, zod schema, or API response shape).
+## Running The Existing Test
+`npm test` runs `tsx --test tests/timer.test.ts`, which needs `npm install` (for `tsx` and `date-fns`) because of the `@/` path alias. Plain `node` cannot run it.
+
+## Intern Check
+- Goal: decide whether rounding should be applied to `startTs` too, or whether `endTs` should never be rounded below `startTs`. Then add a test case to `tests/timer.test.ts` for the 10:07 to 10:08 example.
+- **Check:** your new test asserts that the stop time is never earlier than the start time.

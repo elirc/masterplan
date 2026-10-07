@@ -1,37 +1,18 @@
 # Walkthrough: `src/hooks/use-offline-mutation.ts`
 
 ## Why This File Matters
-This file sits on a critical execution path for app behavior, data integrity, or user-facing workflow.
+`mutateWithQueue` is the single write path for queue-able actions. When the browser is online it calls the REST endpoint. When it is offline it stores the mutation in IndexedDB for `/api/sync` to replay later.
 
 ## Key Dependencies
 - `import { useQueryClient } from "@tanstack/react-query";`
 - `import { enqueueMutation, type OfflineMutation } from "@/lib/offline/queue-db";`
 
-## Top 20-30% Code Walkthrough
-The lines below were selected as the highest-impact section of this file.
-- L6: `export function useOfflineMutation(userId: string) {`
-- Why it matters: Defines a reusable sync helper that encapsulates one behavior boundary.
-- L19: `if (!navigator.onLine) {`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L27: `await enqueueMutation(mutation);`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L28: `return null;`
-- Why it matters: Returns computed state/value to the caller.
-- L31: `const res = await fetch(options.endpoint, {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L38: `if (!res.ok) {`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L39: `throw new Error((await res.json().catch(() => ({ error: "Request failed" }))).error ?? "Request failed");`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L42: `const data = (await res.json()) as T;`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L44: `await queryClient.invalidateQueries();`
-- Why it matters: Forces cached reads to refresh so UI reflects the latest persisted state.
-- L45: `return data;`
-- Why it matters: Returns computed state/value to the caller.
-- L48: `return { mutateWithQueue };`
-- Why it matters: Returns computed state/value to the caller.
+## Key Lines
+- **L17** `options.applyOptimistic?.();`: the optimistic update runs before the network call. Nothing here rolls it back. On error, callers invalidate the query instead (for example `today-client.tsx:134`).
+- **L19** `if (!navigator.onLine) {`: the browser's online flag is the only test. If `navigator.onLine` is true but the request fails, for example on a captive portal or with a server that is down, the `fetch` at L31 throws and the write is lost, not queued.
+- **L24** `payload: options.payload,`: the same payload is sent to the REST route when online and replayed by `sync.ts` when offline. Both sides must accept exactly the same field names.
+- **L44** `await queryClient.invalidateQueries();`: invalidates every query after each successful write. That is simple to reason about, but it refetches more than it needs to.
 
-## Intern Checks
-- Validate any change here against at least one route-level or UI-level flow in the app.
-- Keep this file aligned with its paired contracts (Prisma schema, zod schema, or API response shape).
+## Intern Check
+- Goal: queue the mutation when `fetch` throws a network error (a `TypeError`), and not only when `navigator.onLine` is false.
+- **Check:** after your change, the `fetch` at L31 sits inside a `try` whose `catch` calls `enqueueMutation`. HTTP error responses (`!res.ok`) must still throw.

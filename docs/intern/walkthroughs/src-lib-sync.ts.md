@@ -1,113 +1,22 @@
 # Walkthrough: `src/lib/sync.ts`
 
 ## Why This File Matters
-This file sits on a critical execution path for app behavior, data integrity, or user-facing workflow.
+`replaySyncMutations` applies the offline queue on the server. It is the riskiest file in the repo. It sits next to the REST routes as a second write path, and it skips their validation.
 
 ## Key Dependencies
 - `import { Prisma } from "@prisma/client";`
 - `import { prisma } from "@/lib/prisma";`
 
-## Top 20-30% Code Walkthrough
-The lines below were selected as the highest-impact section of this file.
-- L15: `if (Number.isNaN(parsed.getTime())) return null;`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L16: `return parsed;`
-- Why it matters: Returns computed state/value to the caller.
-- L20: `if (!incomingAt) return true;`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L21: `return existingUpdatedAt.getTime() <= incomingAt.getTime();`
-- Why it matters: Returns computed state/value to the caller.
-- L28: `switch (type) {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L29: `case "daytask.create": {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L36: `const existing = await tx.dayTask.findUnique({`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L42: `if (!existing) {`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L43: `await tx.dayTask.create({`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L54: `if (!shouldApplyLww(existing.updatedAt, incomingAt)) {`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L58: `await tx.dayTask.update({`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L68: `case "daytask.update": {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L69: `const existing = await tx.dayTask.findFirst({ where: { id: payload.id as string, userId } });`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L70: `if (!existing) throw new Error("Missing daytask");`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L71: `if (!shouldApplyLww(existing.updatedAt, incomingAt)) return;`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L73: `await tx.dayTask.update({`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L83: `case "daytask.delete": {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L84: `const existing = await tx.dayTask.findFirst({ where: { id: payload.id as string, userId } });`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L85: `if (!existing) throw new Error("Missing daytask");`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L86: `if (!shouldApplyLww(existing.updatedAt, incomingAt)) return;`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L87: `await tx.dayTask.delete({ where: { id: existing.id } });`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L90: `case "schedule.create": {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L91: `await tx.scheduleBlock.create({`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L104: `case "schedule.update": {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L105: `const existing = await tx.scheduleBlock.findFirst({ where: { id: payload.id as string, userId } });`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L106: `if (!existing) throw new Error("Missing schedule block");`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L107: `if (!shouldApplyLww(existing.updatedAt, incomingAt)) return;`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L109: `await tx.scheduleBlock.update({`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L121: `case "schedule.delete": {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L122: `const existing = await tx.scheduleBlock.findFirst({ where: { id: payload.id as string, userId } });`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L123: `if (!existing) throw new Error("Missing schedule block");`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L124: `if (!shouldApplyLww(existing.updatedAt, incomingAt)) return;`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L125: `await tx.scheduleBlock.delete({ where: { id: existing.id } });`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L128: `case "time.create": {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L129: `await tx.timeEntry.create({`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L142: `case "time.update": {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L143: `const existing = await tx.timeEntry.findFirst({ where: { id: payload.id as string, userId } });`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L144: `if (!existing) throw new Error("Missing time entry");`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L145: `if (!shouldApplyLww(existing.updatedAt, incomingAt)) return;`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L147: `await tx.timeEntry.update({`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L159: `case "time.delete": {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L160: `const existing = await tx.timeEntry.findFirst({ where: { id: payload.id as string, userId } });`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L161: `if (!existing) throw new Error("Missing time entry");`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L162: `if (!shouldApplyLww(existing.updatedAt, incomingAt)) return;`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L163: `await tx.timeEntry.delete({ where: { id: existing.id } });`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L172: `export async function replaySyncMutations(mutations: SyncMutation[]) {`
-- Why it matters: Defines an async entry point that other modules or routes call.
-- L178: `await prisma.$transaction(async (tx) => {`
-- Why it matters: Starts an atomic DB unit-of-work so partial writes cannot escape.
-- L179: `await applyMutation(tx, mutation);`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L190: `return { applied, failed };`
-- Why it matters: Returns computed state/value to the caller.
+## Key Lines
+- **L13** `const value = typeof payload.updatedAt === "string" ? payload.updatedAt : fallbackIso;`: the client never sends `updatedAt`, so the incoming time is always the queue time (`mutation.createdAt`).
+- **L19** `function shouldApplyLww(`: last write wins. The incoming change applies when the row was last updated at or before the incoming time. An unparseable time always applies (L20).
+- **L54** `if (!shouldApplyLww(existing.updatedAt, incomingAt)) {`: a write that loses last-write-wins returns normally, and `replaySyncMutations` reports it as `applied` (L181). The user's change disappears with no signal.
+- **L90** `case "schedule.create": {`: no overlap check, no 30-minute check, and no `end > start` check. Compare `src/app/api/schedule-blocks/route.ts:26-36`.
+- **L109** `await tx.scheduleBlock.update({`: reads `startMin`, `endMin`, `taskId`, `label`, and `locked`, but not `extendByMin`, the field the Today page sends (`today-client.tsx:204`).
+- **L128** `case "time.create": {`: there is no idempotency key. If the response is lost and the queue is sent again, the same entry is created twice. `schedule.create` (L90) has the same gap.
+- **L153** `endTs: payload.endTs ? new Date(payload.endTs as string) : null,`: when `endTs` is missing, the entry is set back to running.
+- **L178** `await prisma.$transaction(async (tx) => {`: each mutation gets its own transaction, applied in order. One failure does not roll back the others.
 
-## Intern Checks
-- Validate any change here against at least one route-level or UI-level flow in the app.
-- Keep this file aligned with its paired contracts (Prisma schema, zod schema, or API response shape).
+## Intern Check
+- Goal: fix L153 so that a missing `endTs` leaves the stored value unchanged, the same way the other optional fields use `undefined`.
+- **Check:** after your change, L153 reads `payload.endTs === undefined ? undefined : ...`, or equivalent, and an explicit `null` still clears the end time.

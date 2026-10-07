@@ -1,50 +1,19 @@
 # Walkthrough: `src/lib/schemas.ts`
 
 ## Why This File Matters
-This file sits on a critical execution path for app behavior, data integrity, or user-facing workflow.
+All request bodies are validated with these zod schemas. Read them to see exactly which fields each API accepts. Some rules that look like they belong here are actually enforced in the routes instead.
 
 ## Key Dependencies
 - `import { z } from "zod";`
 
-## Top 20-30% Code Walkthrough
-The lines below were selected as the highest-impact section of this file.
-- L3: `export const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);`
-- Why it matters: Defines validation constraints for incoming API data.
-- L5: `export const signupSchema = z.object({`
-- Why it matters: Defines validation constraints for incoming API data.
-- L10: `export const loginSchema = signupSchema;`
-- Why it matters: Declares exported configuration/state used by other modules.
-- L12: `export const areaSchema = z.object({`
-- Why it matters: Defines validation constraints for incoming API data.
-- L17: `export const projectSchema = z.object({`
-- Why it matters: Defines validation constraints for incoming API data.
-- L23: `export const taskSchema = z.object({`
-- Why it matters: Defines validation constraints for incoming API data.
-- L32: `export const goalSchema = z.object({`
-- Why it matters: Defines validation constraints for incoming API data.
-- L43: `export const widgetSchema = z.object({`
-- Why it matters: Defines validation constraints for incoming API data.
-- L50: `export const dayTaskCreateSchema = z.object({`
-- Why it matters: Defines validation constraints for incoming API data.
-- L58: `export const dayTaskPatchSchema = z.object({`
-- Why it matters: Defines validation constraints for incoming API data.
-- L64: `export const scheduleBlockCreateSchema = z.object({`
-- Why it matters: Defines validation constraints for incoming API data.
-- L73: `export const scheduleBlockPatchSchema = z.object({`
-- Why it matters: Defines validation constraints for incoming API data.
-- L82: `export const timeEntryCreateSchema = z.object({`
-- Why it matters: Defines validation constraints for incoming API data.
-- L92: `export const timeEntryPatchSchema = z.object({`
-- Why it matters: Defines validation constraints for incoming API data.
-- L101: `export const settingsSchema = z.object({`
-- Why it matters: Defines validation constraints for incoming API data.
-- L107: `export const templateSchema = z.object({`
-- Why it matters: Defines validation constraints for incoming API data.
-- L124: `export const syncMutationSchema = z.object({`
-- Why it matters: Defines validation constraints for incoming API data.
-- L132: `export const syncSchema = z.object({`
-- Why it matters: Defines validation constraints for incoming API data.
+## Key Lines
+- **L3** `export const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);`: checks the shape only, so `2026-13-45` passes.
+- **L66** `startMin: z.number().int().min(0).max(1440),`: there is no 30-minute rule and no `end > start` rule here. Both are checked in the schedule-block routes.
+- **L79** `extendByMin: z.number().int().positive().optional(),`: only the PATCH schema accepts `extendByMin`.
+- **L96** `endTs: z.string().datetime().optional().nullable(),`: in a PATCH, `endTs: null` means "reopen". The offline replay sets `endTs` to `null` whenever the field is missing (`src/lib/sync.ts:153`).
+- **L104** `timerRoundingMin: z.union([z.literal(0), z.literal(5), z.literal(15)]),`: the only rounding steps allowed.
+- **L128** `payload: z.record(z.string(), z.unknown()),`: sync payloads are not validated against the per-endpoint schemas above.
 
-## Intern Checks
-- Validate any change here against at least one route-level or UI-level flow in the app.
-- Keep this file aligned with its paired contracts (Prisma schema, zod schema, or API response shape).
+## Intern Check
+- Goal: validate each sync payload with the matching endpoint schema, for example `daytask.create` with `dayTaskCreateSchema`.
+- **Check:** after your change, `grep -n "z.unknown()" src/lib/schemas.ts` no longer matches the sync payload line, or `src/lib/sync.ts` parses `payload` per `type`.

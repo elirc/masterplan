@@ -114,9 +114,9 @@ Master Life Plan is a personal planning web app for organizing long-term structu
 npm install
 ```
 
-2. Create env file from example
+2. Create an env file. The repo does not ship a `.env.example`, because `.gitignore` excludes `.env*`. Prisma reads `DATABASE_URL`. `npm run dev` and `npm start` fall back to `file:./dev.db` through `scripts/prepare-db.mjs`, but the `prisma:*` scripts need the variable set.
 ```bash
-copy .env.example .env
+echo DATABASE_URL="file:./dev.db" > .env
 ```
 
 3. Prisma generate + migrate

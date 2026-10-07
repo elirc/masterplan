@@ -1,10 +1,9 @@
 # Walkthrough: `src/app/api/goals/route.ts`
 
 ## Why This File Matters
-This file sits on a critical execution path for app behavior, data integrity, or user-facing workflow.
+`GET /api/goals` computes planned and actual minutes for every goal and builds the dashboard widget list for Today and Goals. `POST /api/goals` creates a goal together with its widget.
 
 ## Key Dependencies
-- `import { NextRequest } from "next/server";`
 - `import { addDays, format, parseISO, startOfWeek } from "date-fns";`
 - `import { goalSchema } from "@/lib/schemas";`
 - `import { handleError, withUser } from "@/lib/api";`
@@ -12,73 +11,14 @@ This file sits on a critical execution path for app behavior, data integrity, or
 - `import { computeGoalActual, computeGoalPlanned } from "@/lib/goals";`
 - `import { todayKey } from "@/lib/dates";`
 
-## Top 20-30% Code Walkthrough
-The lines below were selected as the highest-impact section of this file.
-- L3: `import { goalSchema } from "@/lib/schemas";`
-- Why it matters: Validates input before business logic executes.
-- L10: `if (scope === "DAILY") return [date];`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L17: `return days;`
-- Why it matters: Returns computed state/value to the caller.
-- L20: `export async function GET(request: NextRequest) {`
-- Why it matters: Defines an async entry point that other modules or routes call.
-- L21: `const auth = await withUser();`
-- Why it matters: Fetches user context and enforces per-user scoping for downstream logic.
-- L22: `if (!auth.user) return auth.response!;`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L26: `const [goals, widgets] = await Promise.all([`
-- Why it matters: Runs independent async operations in parallel for lower latency.
-- L27: `prisma.goal.findMany({`
-- Why it matters: Reads persisted state from SQLite through Prisma.
-- L28: `where: { userId: auth.user.id },`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L29: `orderBy: { createdAt: "asc" },`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L31: `prisma.dashboardWidget.findMany({`
-- Why it matters: Reads persisted state from SQLite through Prisma.
-- L32: `where: { userId: auth.user.id },`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L33: `orderBy: { sortOrder: "asc" },`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L37: `const data = await Promise.all(`
-- Why it matters: Runs independent async operations in parallel for lower latency.
-- L41: `const [entries, dayTasks] = await Promise.all([`
-- Why it matters: Runs independent async operations in parallel for lower latency.
-- L42: `prisma.timeEntry.findMany({`
-- Why it matters: Reads persisted state from SQLite through Prisma.
-- L43: `where: {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L47: `include: {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L56: `prisma.dayTask.findMany({`
-- Why it matters: Reads persisted state from SQLite through Prisma.
-- L57: `where: {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L61: `include: {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L74: `return {`
-- Why it matters: Returns computed state/value to the caller.
-- L83: `return Response.json({`
-- Why it matters: Final API response shape returned to the client.
-- L104: `export async function POST(request: NextRequest) {`
-- Why it matters: Defines an async entry point that other modules or routes call.
-- L105: `const auth = await withUser();`
-- Why it matters: Fetches user context and enforces per-user scoping for downstream logic.
-- L106: `if (!auth.user) return auth.response!;`
-- Why it matters: Branches behavior for validation, authorization, or state guards.
-- L109: `const body = goalSchema.parse(await request.json());`
-- Why it matters: Validates input before business logic executes.
-- L111: `const goal = await prisma.goal.create({`
-- Why it matters: Mutates persisted state in SQLite; check payload fields carefully before edits.
-- L125: `const order = await prisma.dashboardWidget.count({ where: { userId: auth.user.id } });`
-- Why it matters: Touches persistent data through Prisma; this line changes or reads DB state.
-- L127: `await prisma.dashboardWidget.create({`
-- Why it matters: Mutates persisted state in SQLite; check payload fields carefully before edits.
-- L137: `return Response.json({ goal }, { status: 201 });`
-- Why it matters: Final API response shape returned to the client.
-- L139: `return handleError(error);`
-- Why it matters: Returns computed state/value to the caller.
+## Key Lines
+- **L9** `function dateRangeForScope(`: a `DAILY` goal covers one date, and a `WEEKLY` goal covers Monday through Sunday (`weekStartsOn: 1`, L12). `parseISO` reads a UTC midnight, but `startOfWeek` and `format` work in the server's local timezone. On a server west of UTC, a Monday date can therefore resolve to the previous week.
+- **L26** `Promise.all([`: goals and widgets load in parallel.
+- **L38** `goals.map(async (goal) => {`: each goal runs its own two queries (L41-70). Five goals means ten extra queries, even though all daily goals read the same rows.
+- **L77** `actualMin: computeGoalActual(goal, entries),`: the matching logic lives in `src/lib/goals.ts`.
+- **L111** `prisma.goal.create({`: the goal and its widget (L127) are two separate writes with no transaction. If the second fails, the goal exists without a widget.
+- **L125** `prisma.dashboardWidget.count`: the widget count becomes the new widget's `sortOrder`.
 
-## Intern Checks
-- Validate any change here against at least one route-level or UI-level flow in the app.
-- Keep this file aligned with its paired contracts (Prisma schema, zod schema, or API response shape).
+## Intern Check
+- Goal: wrap the goal and widget writes in `prisma.$transaction`, and load entries and day tasks once per distinct date range instead of once per goal.
+- **Check:** `grep -n "\$transaction" src/app/api/goals/route.ts` prints nothing today.

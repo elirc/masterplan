@@ -1,20 +1,18 @@
 # Walkthrough: `src/components/today/schedule-block-row.tsx`
 
 ## Why This File Matters
-This file sits on a critical execution path for app behavior, data integrity, or user-facing workflow.
+This is a presentational row for one schedule block. Selecting a block matters for more than looks: while a block is selected, `+30m` and `+1h` on a task also extend that block (`src/components/today/today-client.tsx:187-210`).
 
 ## Key Dependencies
 - `import { minutesToLabel } from "@/lib/dates";`
 - `import { cn } from "@/lib/utils";`
 - `import type { ScheduleBlockItem } from "@/types/api";`
 
-## Top 20-30% Code Walkthrough
-The lines below were selected as the highest-impact section of this file.
-- L7: `export function ScheduleBlockRow({`
-- Why it matters: Defines a reusable sync helper that encapsulates one behavior boundary.
-- L16: `return (`
-- Why it matters: Returns computed state/value to the caller.
+## Key Lines
+- **L19** `onClick={() => onSelect(block.id)}`: the parent stores the selection in `selectedBlockId`.
+- **L22** `selected ?`: selection is shown only by styling. Nothing tells the user that a selected block will be extended.
+- **L26** `minutesToLabel(block.startMin)`: minutes since midnight are rendered as `HH:MM`.
 
-## Intern Checks
-- Validate any change here against at least one route-level or UI-level flow in the app.
-- Keep this file aligned with its paired contracts (Prisma schema, zod schema, or API response shape).
+## Intern Check
+- Goal: add a small hint, such as "+time extends this block", that appears only when `selected` is true.
+- **Check:** the hint is rendered conditionally on `selected`, and the component's props stay unchanged.

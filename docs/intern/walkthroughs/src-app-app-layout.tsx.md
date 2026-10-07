@@ -1,21 +1,16 @@
 # Walkthrough: `src/app/(app)/layout.tsx`
 
 ## Why This File Matters
-This file sits on a critical execution path for app behavior, data integrity, or user-facing workflow.
+This server layout wraps every in-app page: `/today`, `/plan`, `/goals`, `/review`, and `/settings`. It resolves the user and hands that user to the client-side `AppShell`.
 
 ## Key Dependencies
 - `import { AppShell } from "@/components/app-shell";`
 - `import { requireUserOrRedirect } from "@/lib/auth";`
 
-## Top 20-30% Code Walkthrough
-The lines below were selected as the highest-impact section of this file.
-- L4: `export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L5: `const user = await requireUserOrRedirect();`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L7: `return <AppShell user={{ id: user.id, username: user.username }}>{children}</AppShell>;`
-- Why it matters: Returns computed state/value to the caller.
+## Key Lines
+- **L5** `const user = await requireUserOrRedirect();`: despite its name, this function never redirects. It just returns `requireUser()` (`src/lib/auth.ts:125-127`), and `requireUser` falls back to the oldest user, or creates a local one, when no session cookie exists.
+- **L7** `<AppShell user={{ id: user.id, username: user.username }}>`: only the ID and username cross into client components, never the password hash.
 
-## Intern Checks
-- Validate any change here against at least one route-level or UI-level flow in the app.
-- Keep this file aligned with its paired contracts (Prisma schema, zod schema, or API response shape).
+## Intern Check
+- Goal: decide whether to rename `requireUserOrRedirect` or to make it really redirect to `/login` when there is no session. Write one sentence on how each choice affects the "no sign-in" feature described in the README.
+- **Check:** `grep -rn "requireUserOrRedirect" src` lists every caller you would need to update.

@@ -1,23 +1,18 @@
 # Walkthrough: `src/app/layout.tsx`
 
 ## Why This File Matters
-This file sits on a critical execution path for app behavior, data integrity, or user-facing workflow.
+This is the root layout for every route, including the splash page. It links the PWA manifest and mounts the React Query and toast providers. It also registers the service worker.
 
 ## Key Dependencies
-- `import type { Metadata } from "next";`
 - `import "./globals.css";`
 - `import { AppProviders } from "@/components/providers/app-providers";`
 - `import { PwaRegister } from "@/components/pwa-register";`
 
-## Top 20-30% Code Walkthrough
-The lines below were selected as the highest-impact section of this file.
-- L6: `export const metadata: Metadata = {`
-- Why it matters: Declares exported configuration/state used by other modules.
-- L12: `export default function RootLayout({ children }: { children: React.ReactNode }) {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L13: `return (`
-- Why it matters: Returns computed state/value to the caller.
+## Key Lines
+- **L9** `manifest: "/manifest.webmanifest",`: points to `public/manifest.webmanifest`.
+- **L16** `<AppProviders>`: the one `QueryClient` for the whole app is created here.
+- **L17** `<PwaRegister />`: registers `/sw.js` on mount and ignores any failure (`src/components/pwa-register.tsx:10-16`).
 
-## Intern Checks
-- Validate any change here against at least one route-level or UI-level flow in the app.
-- Keep this file aligned with its paired contracts (Prisma schema, zod schema, or API response shape).
+## Intern Check
+- Goal: open `public/sw.js` and work out what a returning user sees right after a deploy.
+- **Check:** `sw.js` serves cached pages first (`public/sw.js:39-41`) under a fixed `CACHE_NAME` (`sw.js:1`). Until that name changes, a returning user keeps getting the old cached HTML.

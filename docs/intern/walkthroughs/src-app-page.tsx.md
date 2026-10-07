@@ -1,24 +1,19 @@
 # Walkthrough: `src/app/page.tsx`
 
 ## Why This File Matters
-This file sits on a critical execution path for app behavior, data integrity, or user-facing workflow.
+`/` is the splash screen. It shows the three slogans, counts down, and then sends the user on to `/home`, which redirects to `/today` (`src/app/home/page.tsx:4`).
 
 ## Key Dependencies
 - `import { useEffect, useState } from "react";`
 - `import { Nosifer } from "next/font/google";`
 - `import { useRouter } from "next/navigation";`
 
-## Top 20-30% Code Walkthrough
-The lines below were selected as the highest-impact section of this file.
-- L14: `export default function SplashPage() {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L18: `useEffect(() => {`
-- Why it matters: Sets up side effects tied to lifecycle and dependency changes.
-- L27: `return () => {`
-- Why it matters: Returns computed state/value to the caller.
-- L33: `return (`
-- Why it matters: Returns computed state/value to the caller.
+## Key Lines
+- **L12** `const COUNTDOWN_SECONDS = 5;`: one constant drives both the label and the redirect delay.
+- **L19** `window.setTimeout(() => {`: does the redirect with `router.replace` (L20), so the Back button does not return to the splash.
+- **L23** `window.setInterval(() => {`: updates the visible countdown once per second.
+- **L27** `return () => {`: the cleanup clears both timers, which prevents a redirect after the component unmounts.
 
-## Intern Checks
-- Validate any change here against at least one route-level or UI-level flow in the app.
-- Keep this file aligned with its paired contracts (Prisma schema, zod schema, or API response shape).
+## Intern Check
+- Goal: add a "Skip" button that redirects immediately, without leaving the timers running.
+- **Check:** your button calls `router.replace("/home")`, and the existing cleanup at L27-30 still clears both timers on unmount.

@@ -1,36 +1,18 @@
 # Walkthrough: `src/lib/offline/queue-db.ts`
 
 ## Why This File Matters
-This file sits on a critical execution path for app behavior, data integrity, or user-facing workflow.
+This is the IndexedDB (Dexie) store for writes made while offline. Each row is one `OfflineMutation`, and its shape matches what `POST /api/sync` expects (`src/lib/schemas.ts:124-130`).
 
 ## Key Dependencies
 - `import Dexie, { type Table } from "dexie";`
 
-## Top 20-30% Code Walkthrough
-The lines below were selected as the highest-impact section of this file.
-- L5: `export type OfflineMutation = {`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L24: `export const offlineDb = new OfflineDb();`
-- Why it matters: Declares exported configuration/state used by other modules.
-- L26: `export async function enqueueMutation(mutation: OfflineMutation) {`
-- Why it matters: Defines an async entry point that other modules or routes call.
-- L27: `await offlineDb.queue.put(mutation);`
-- Why it matters: Contributes to control flow or state composition in this module.
-- L30: `export async function getPendingMutations(userId: string) {`
-- Why it matters: Defines an async entry point that other modules or routes call.
-- L31: `return offlineDb.queue.where("userId").equals(userId).sortBy("createdAt");`
-- Why it matters: Returns computed state/value to the caller.
-- L34: `export async function removeMutations(ids: string[]) {`
-- Why it matters: Defines an async entry point that other modules or routes call.
-- L35: `await offlineDb.transaction("rw", offlineDb.queue, async () => {`
-- Why it matters: Groups writes atomically so partial updates do not leak on failure.
-- L36: `await Promise.all(ids.map((id) => offlineDb.queue.delete(id)));`
-- Why it matters: Runs independent async operations in parallel for lower latency.
-- L40: `export async function pendingCount(userId: string) {`
-- Why it matters: Defines an async entry point that other modules or routes call.
-- L41: `return offlineDb.queue.where("userId").equals(userId).count();`
-- Why it matters: Returns computed state/value to the caller.
+## Key Lines
+- **L17** `super("master-life-plan-db");`: the database name. Changing it orphans every queued write already in users' browsers.
+- **L19** `queue: "id, userId, createdAt, type",`: `id` is the primary key, and the other three fields are indexes. Adding a new indexed field needs a `this.version(2)` migration.
+- **L27** `await offlineDb.queue.put(mutation);`: `put` inserts or replaces by `id`, and each mutation gets a fresh UUID (`src/hooks/use-offline-mutation.ts:21`).
+- **L31** `return offlineDb.queue.where("userId").equals(userId).sortBy("createdAt");`: mutations are replayed in the order they were created, which last-write-wins depends on.
+- **L35** `await offlineDb.transaction("rw", offlineDb.queue, async () => {`: all deletes run in one transaction.
 
-## Intern Checks
-- Validate any change here against at least one route-level or UI-level flow in the app.
-- Keep this file aligned with its paired contracts (Prisma schema, zod schema, or API response shape).
+## Intern Check
+- Goal: add an `attempts` counter so the sync hook can drop mutations that keep failing.
+- **Check:** your change bumps the schema with `this.version(2).stores({...})`, and leaves `version(1)` in place.
